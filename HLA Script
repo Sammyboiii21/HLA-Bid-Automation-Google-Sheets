@@ -1,68 +1,73 @@
-function updateHLASeenAndNewBids() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const dailySheet = ss.getSheetByName("Daily Pull HLA");
-  const seenSheet = ss.getSheetByName("Seen HLA");
-  const newBidsSheet = ss.getSheetByName("New Bids HLA");
+function myFunction() {
+  function updateHLASeenAndNewBids() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const dailySheet = ss.getSheetByName("Daily Pull HLA");
+    const seenSheet = ss.getSheetByName("Seen HLA");
+    const newBidsSheet = ss.getSheetByName("New Bids HLA");
 
-  dailySheet.activate();
-  SpreadsheetApp.flush();
+    dailySheet.activate();
+    SpreadsheetApp.flush();
 
-  const dailyData = dailySheet.getDataRange().getValues();
-  const seenData = seenSheet.getDataRange().getValues();
+    const dailyData = dailySheet.getDataRange().getValues();
+    const seenData = seenSheet.getDataRange().getValues();
 
-  if (dailyData.length < 2) return;
+    if (dailyData.length < 2) return;
 
-  const headers = dailyData[0];
-  const projectIndex = headers.indexOf("Project");
+    const headers = dailyData[0];
+    const projectIndex = headers.indexOf("Project");
 
-  if (projectIndex === -1) {
-    throw new Error("Missing required column: Project");
-  }
-
-  const seenProjects = new Set(seenData.slice(1).map(row => String(row[projectIndex]).toUpperCase()));
-
-  const newRows = dailyData.slice(1).filter(row =>
-    !seenProjects.has(String(row[projectIndex]).toUpperCase())
-  );
-
-  const newHeaders = headers.slice();
-
-  // Always write headers to row 1 of Seen HLA
-  seenSheet.getRange(1, 1, 1, newHeaders.length).setValues([newHeaders]);
-
-  if (newRows.length > 0) {
-    seenSheet.getRange(seenSheet.getLastRow() + 1, 1, newRows.length, newRows[0].length).setValues(newRows);
-  }
-
-  newBidsSheet.clearContents();
-  newBidsSheet.getRange(1, 1, 1, newHeaders.length).setValues([newHeaders]);
-
-  if (newRows.length > 0) {
-    newBidsSheet.getRange(2, 1, newRows.length, newRows[0].length).setValues(newRows);
-  }
-
-  // Construct and send email summary
-  const introLine = `<p>There are <strong>${newRows.length}</strong> new bids listed on HLA as of <strong>${new Date().toLocaleDateString()}</strong>.</p>`;
-
-  const emailBody = newRows.length > 0
-    ? newRows.map(row => {
-        return newHeaders.map((header, idx) => `<strong>${header}:</strong> ${row[idx]}`).join('<br>');
-      }).map(block => `<p>${block}</p>`).join('<hr>')
-    : '';
-
-  const htmlBody = `
-    <h3>New Bids from HLA</h3>
-    ${introLine}
-    ${emailBody}
-  `;
-
-  GmailApp.sendEmail(
-    "Samuel.Kroll@cwu.edu",
-    "New Bids from HLA",
-    "",
-    {
-      htmlBody: htmlBody,
-      name: Session.getActiveUser().getEmail()
+    if (projectIndex === -1) {
+      throw new Error("Missing required column: Project");
     }
-  );
+
+    const seenProjects = new Set(seenData.slice(1).map(row => String(row[projectIndex]).toUpperCase()));
+
+    const newRows = dailyData.slice(1).filter(row =>
+      !seenProjects.has(String(row[projectIndex]).toUpperCase())
+    );
+
+    const newHeaders = headers.slice();
+
+    // Always write headers to row 1 of Seen HLA
+    seenSheet.getRange(1, 1, 1, newHeaders.length).setValues([newHeaders]);
+
+    if (newRows.length > 0) {
+      seenSheet.getRange(seenSheet.getLastRow() + 1, 1, newRows.length, newRows[0].length).setValues(newRows);
+    }
+
+    newBidsSheet.clearContents();
+    newBidsSheet.getRange(1, 1, 1, newHeaders.length).setValues([newHeaders]);
+
+    if (newRows.length > 0) {
+      newBidsSheet.getRange(2, 1, newRows.length, newRows[0].length).setValues(newRows);
+    }
+
+    // Construct and send email summary
+    const introLine = `<p>There are <strong>${newRows.length}</strong> new bids listed on HLA as of <strong>${new Date().toLocaleDateString()}</strong>.</p>`;
+
+    const emailBody = newRows.length > 0
+      ? newRows.map(row => {
+          return newHeaders.map((header, idx) => `<strong>${header}:</strong> ${row[idx]}`).join('<br>');
+        }).map(block => `<p>${block}</p>`).join('<hr>')
+      : '';
+
+    const htmlBody = `
+      <h3>New Bids from HLA</h3>
+      ${introLine}
+      ${emailBody}
+    `;
+
+    GmailApp.sendEmail(
+      "Samuel.Kroll@cwu.edu, tylers@ttcexcavation.com",
+      "New Bids from HLA",
+      "",
+      {
+        htmlBody: htmlBody,
+        name: Session.getActiveUser().getEmail()
+      }
+    );
+
+    // Clear Daily Pull HLA after emails are sent
+    dailySheet.clearContents();
+  }
 }
