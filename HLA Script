@@ -65,4 +65,7 @@ function updateHLASeenAndNewBids() {
       name: Session.getActiveUser().getEmail()
     }
   );
+
+  // ✅ Clear Daily Pull HLA after email is sent
+  dailySheet.clearContents();
 }
