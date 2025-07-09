@@ -13,41 +13,67 @@ function updateHLASeenAndNewBids() {
   if (dailyData.length < 2) return;
 
   const headers = dailyData[0];
-  const projectIndex = headers.indexOf("Project");
+  const urlIndex = headers.indexOf("Project_Name_URL");
+  const nameIndex = headers.indexOf("Project_Name");
+  const bidInfoIndex = headers.indexOf("Bid_Information");
 
-  if (projectIndex === -1) {
-    throw new Error("Missing required column: Project");
+  if (nameIndex === -1 || urlIndex === -1 || bidInfoIndex === -1) {
+    throw new Error("Missing required columns");
   }
 
-  const seenProjects = new Set(seenData.slice(1).map(row => String(row[projectIndex]).toUpperCase()));
+  const seenProjects = new Set(seenData.slice(1).map(row => String(row[0]).toUpperCase()));
 
   const newRows = dailyData.slice(1).filter(row =>
-    !seenProjects.has(String(row[projectIndex]).toUpperCase())
+    !seenProjects.has(String(row[nameIndex]).toUpperCase())
   );
 
   const newHeaders = headers.slice();
 
-  // Always write headers to row 1 of Seen HLA
-  seenSheet.getRange(1, 1, 1, newHeaders.length).setValues([newHeaders]);
+  // Write headers for Seen HLA
+  seenSheet.getRange(1, 1, 1, 3).setValues([["Project_Name", "Date", "Time"]]);
 
   if (newRows.length > 0) {
-    seenSheet.getRange(seenSheet.getLastRow() + 1, 1, newRows.length, newRows[0].length).setValues(newRows);
+    const seenFormattedRows = newRows.map(row => {
+      const url = row[urlIndex];
+      const name = row[nameIndex];
+      const bidInfo = row[bidInfoIndex];
+      const [date, time] = bidInfo.split(" - ").map(s => s.trim());
+      const hyperlinkFormula = `=HYPERLINK("${url}", "${name}")`;
+      return [hyperlinkFormula, date, time];
+    });
+
+    seenSheet.getRange(seenSheet.getLastRow() + 1, 1, seenFormattedRows.length, 3).setValues(seenFormattedRows);
   }
 
+  // Handle New Bids HLA using same format as Seen HLA
   newBidsSheet.clearContents();
-  newBidsSheet.getRange(1, 1, 1, newHeaders.length).setValues([newHeaders]);
+  newBidsSheet.getRange(1, 1, 1, 3).setValues([["Project_Name", "Date", "Time"]]);
 
   if (newRows.length > 0) {
-    newBidsSheet.getRange(2, 1, newRows.length, newRows[0].length).setValues(newRows);
+    const newBidsFormattedRows = newRows.map(row => {
+      const url = row[urlIndex];
+      const name = row[nameIndex];
+      const bidInfo = row[bidInfoIndex];
+      const [date, time] = bidInfo.split(" - ").map(s => s.trim());
+      const hyperlinkFormula = `=HYPERLINK("${url}", "${name}")`;
+      return [hyperlinkFormula, date, time];
+    });
+
+    newBidsSheet.getRange(2, 1, newBidsFormattedRows.length, 3).setValues(newBidsFormattedRows);
   }
 
-  // Construct and send email summary
+  // ✅ EMAIL SECTION: updated to match New Bids HLA format
   const introLine = `<p>There are <strong>${newRows.length}</strong> new bids listed on HLA as of <strong>${new Date().toLocaleDateString()}</strong>.</p>`;
 
   const emailBody = newRows.length > 0
     ? newRows.map(row => {
-        return newHeaders.map((header, idx) => `<strong>${header}:</strong> ${row[idx]}`).join('<br>');
-      }).map(block => `<p>${block}</p>`).join('<hr>')
+        const url = row[urlIndex];
+        const name = row[nameIndex];
+        const bidInfo = row[bidInfoIndex];
+        const [date, time] = bidInfo.split(" - ").map(s => s.trim());
+        const hyperlink = `<a href="${url}">${name}</a>`;
+        return `<p><strong>Project:</strong> ${hyperlink}<br><strong>Date:</strong> ${date}<br><strong>Time:</strong> ${time}</p>`;
+      }).join('<hr>')
     : '';
 
   const htmlBody = `
@@ -57,7 +83,7 @@ function updateHLASeenAndNewBids() {
   `;
 
   GmailApp.sendEmail(
-    "Samuel.Kroll@cwu.edu",
+    "samk@ttcexcavation.com",
     "New Bids from HLA",
     "",
     {
@@ -66,6 +92,5 @@ function updateHLASeenAndNewBids() {
     }
   );
 
-  // ✅ Clear Daily Pull HLA after email is sent
   dailySheet.clearContents();
 }
