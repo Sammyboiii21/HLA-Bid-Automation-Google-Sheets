@@ -83,7 +83,7 @@ function updateHLASeenAndNewBids() {
   `;
 
   GmailApp.sendEmail(
-    "samk@ttcexcavation.com",
+    "samk@ttcexcavation.com, tylers@ttcexcavation.com",
     "New Bids from HLA",
     "",
     {
